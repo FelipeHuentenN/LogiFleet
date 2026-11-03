@@ -1,27 +1,14 @@
 from nicegui import ui
 
+import db
+
 @ui.page('/Trabajadores')
 def pagina_trabajadores():
     ui.colors(primary="#1F3A5F")
 
-    # Datos ficticios para el prototipo
-    datos_trabajadores = [
-        {
-            "rut": "11111111", "digito verificador": "4","conductor": "Juan Pérez","estado recorrido": "En recorrido",
-            "total de paquetes": "10", "paquetes entregados": "5", "paquetes faltantes": "3",
-            "Vehiculo asigando": "ABCD-12", "combustible": "65%", "paquete no entregado": "Cliente no responde", "estado": "activo"
-        },
-        {
-            "rut": "22222222", "digito verificador": "8","conductor": "Carlos Pérez","estado recorrido": "finalizado",
-            "total de paquetes": "11", "paquetes entregados": "6", "paquetes faltantes": "1",
-            "Vehiculo asigando": "EFGH-34", "combustible": "5%", "paquete no entregado": "Fallo de la entrega por motivos climaticos", "estado": "activo"
-        },
-        {
-            "rut": "33333333", "digito verificador": "k","conductor": "Lucas Pérez","estado recorrido": "Iniciando recorrido",
-            "total de paquetes": "12", "paquetes entregados": "0", "paquetes faltantes": "12",
-            "Vehiculo asigando": "IJKL-56", "combustible": "94%", "paquete no entregado": "N/A", "estado": "activo"
-        },
-    ]
+    # Datos desde MySQL (ver db.py). El modelo no guarda RUT de conductores,
+    # por eso se muestra la licencia.
+    datos_trabajadores = db.listar_conductores()
 
     # Encabezado
     with ui.header().classes("items-center gap-6 px-6"):
@@ -42,7 +29,7 @@ def pagina_trabajadores():
                 ui.label("Trabajadores").classes("text-3xl font-bold")
                 ui.label("Administra la flota y los conductores").classes("text-gray-500")
 
-            ui.button("Actualizar panel",icon="refresh",on_click=lambda: ui.notify("Panel actualizado ")).props("outline")
+            ui.button("Actualizar panel",icon="refresh",on_click=ui.navigate.reload).props("outline")
 
 
         # Tarjetas de resumen
@@ -62,7 +49,7 @@ def pagina_trabajadores():
                     ui.icon("person_check", size="2xl").classes("text-green-600")
                     with ui.column().classes("gap-0"):
                         ui.label("Trabajadores activos").classes("text-gray-500")
-                        ui.label(str(sum(v["estado"] == "activo"
+                        ui.label(str(sum(v["estado"] != "Inactivo"
                                          for v in datos_trabajadores))).classes("text-3xl font-bold")
 
             #       Trabajadores finalizado
@@ -71,7 +58,7 @@ def pagina_trabajadores():
                     ui.icon("person_off", size="2xl").classes("text-orange-500")
                     with ui.column().classes("gap-0"):
                         ui.label("Trabajadores inactivos").classes("text-gray-500")
-                        ui.label(str(sum(v["estado"] == "inactivo" 
+                        ui.label(str(sum(v["estado"] == "Inactivo"
                                         for v in datos_trabajadores))).classes("text-3xl font-bold")
 
             #       Trabajadores iniciando recorrido
@@ -80,16 +67,16 @@ def pagina_trabajadores():
                     ui.icon("local_shipping", size="2xl").classes("text-teal-600")
                     with ui.column().classes("gap-0"):
                         ui.label("Trabajadores en recorrido").classes("text-gray-500")
-                        ui.label(str(sum(v["estado recorrido"] == "En recorrido"
+                        ui.label(str(sum(v["estado recorrido"] == "En curso"
                                         for v in datos_trabajadores))).classes("text-3xl font-bold")
 
         # Buscador y filtro
         with ui.card().classes("w-full"):
             with ui.row().classes("w-full items-center gap-4"):
 
-                buscador = ui.input(placeholder="Buscar por conductor o RUT...").props("outlined clearable").classes("flex-1")
+                buscador = ui.input(placeholder="Buscar por conductor o patente...").props("outlined clearable").classes("flex-1")
                 filtro = ui.select(
-                    ["Todos", "Iniciando recorrido", "En recorrido", "finalizado"],
+                    ["Todos", "En curso", "Planificada", "Finalizada", "Cancelada", "Sin ruta"],
                     value="Todos",
                     label="Estado del recorrido").props("outlined").classes("w-64")
 
@@ -111,9 +98,9 @@ def pagina_trabajadores():
                         with ui.row().classes("w-full items-center gap-3 p-3 rounded ""cursor-pointer hover:bg-gray-100") as fila:
 
                             color_estado = {
-                                "Iniciando recorrido": "text-green-600",
-                                "En recorrido": "text-yellow-600",
-                                "finalizado": "text-red-500",}.get(Trbajadores["estado recorrido"], "text-gray-500")
+                                "En curso": "text-green-600",
+                                "Planificada": "text-blue-600",
+                                "Cancelada": "text-red-500",}.get(Trbajadores["estado recorrido"], "text-gray-500")
 
                             with ui.column().classes("gap-1 flex-1"):
                                 ui.label(Trbajadores["conductor"]).classes("font-bold")
@@ -145,7 +132,7 @@ def pagina_trabajadores():
 
                     with ui.column().classes("gap-1"):
                         conductor_detalle = ui.label("Juan Pérez").classes("text-2xl font-bold")
-                        rut_detalle = ui.label("11111111"+"-"+"4").classes("text-gray-500")
+                        licencia_detalle = ui.label("Licencia").classes("text-gray-500")
                         vehiculo_asignado_detalle = ui.label("vehiculo asignado: ABCD-12")
 
                 # Datos generales
@@ -169,7 +156,7 @@ def pagina_trabajadores():
 
                     with ui.card().classes("bg-gray-50"):
                         ui.icon("local_gas_station").classes("text-green-600 text-xl")
-                        ui.label("Combustible disponible").classes("text-gray-500")
+                        ui.label("Última carga de combustible").classes("text-gray-500")
                         combustible_detalle = ui.label("65%").classes("text-lg font-bold")
 
                 # Actividad y acciones
@@ -186,19 +173,19 @@ def pagina_trabajadores():
 
         def seleccionar_Trabajador(Trabajador):
             conductor_detalle.set_text(Trabajador["conductor"])
-            rut_detalle.set_text(Trabajador["rut"]+"-"+(Trabajador["digito verificador"]))
+            licencia_detalle.set_text(f"{Trabajador['licencia']} · {Trabajador['telefono']}")
             vehiculo_asignado_detalle.set_text(f"Vehiculo asigando: {Trabajador['Vehiculo asigando']}")
             estado_detalle.set_text(Trabajador["estado recorrido"])
             total_paquetes_detalle.set_text(Trabajador['total de paquetes'])
             paquetes_entregados_detalle.set_text(Trabajador["paquetes entregados"])
             paquetes_faltantes_detalle.set_text(Trabajador["paquetes faltantes"])
-            combustible_detalle.set_text(Trabajador["combustible"])
+            combustible_detalle.set_text(Trabajador["ultima carga"])
             paquetes_no__detalle.set_text(Trabajador["paquete no entregado"])
 
             colores = {
-                "Iniciando recorrido": "text-green-700",
-                "En recorrido": "text-yellow-700",
-                "finalizado": "text-red-600",}
+                "En curso": "text-green-700",
+                "Planificada": "text-blue-700",
+                "Cancelada": "text-red-600",}
             estado_detalle.classes(remove="text-green-700 text-yellow-700 text-red-600 " "text-blue-700 text-orange-600 text-gray-600")
             estado_detalle.classes(colores.get(Trabajador["estado recorrido"], "text-gray-600"))
 
@@ -206,13 +193,15 @@ def pagina_trabajadores():
             texto = (buscador.value or "").strip().lower()
             estado = filtro.value
 
-            for fila, vehiculo in filas:
-                rut_completo = (vehiculo["rut"] + "-" + vehiculo["digito verificador"]).lower()
-                texto_busqueda = texto.replace(".", "").replace("-", "")
-                coincide_texto = (texto in vehiculo["conductor"].lower()or texto_busqueda in rut_completo.lower())
-                coincide_estado = (estado == "Todos" or vehiculo["estado recorrido"] == estado)
+            for fila, trabajador in filas:
+                coincide_texto = (texto in trabajador["conductor"].lower()
+                                  or texto in trabajador["Vehiculo asigando"].lower())
+                coincide_estado = (estado == "Todos" or trabajador["estado recorrido"] == estado)
                 fila.set_visibility(coincide_texto and coincide_estado)
 
         buscador.on_value_change(lambda _: aplicar_filtros())
         filtro.on_value_change(lambda _: aplicar_filtros())
+
+        if datos_trabajadores:
+            seleccionar_Trabajador(datos_trabajadores[0])
         ui.button('Volver', on_click=lambda: ui.navigate.to('/'))

@@ -1,0 +1,2 @@
+nicegui==3.19.0
+PyMySQL==1.2.3
