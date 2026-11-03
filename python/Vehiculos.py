@@ -1,35 +1,15 @@
 
 from nicegui import ui
 
+import db
+
 
 @ui.page('/vehiculos')
 def pagina_vehiculos():
     ui.colors(primary="#1F3A5F")
 
-    # Datos ficticios para el prototipo
-    datos_vehiculos = [
-        {
-            "id": 1, "patente": "ABCD-12", "modelo": "Renault Master",
-            "conductor": "Juan Pérez", "estado": "Activo",
-            "km": 45000, "mantencion": "15/11/2026",
-            "consumo": "10 km/l", "combustible": "65%",
-            "ultima": "Hoy, 14:30"
-        },
-        {
-            "id": 2, "patente": "EFGH-34", "modelo": "Peugeot Partner",
-            "conductor": "María López", "estado": "Activo",
-            "km": 32000, "mantencion": "20/12/2026",
-            "consumo": "12 km/l", "combustible": "80%",
-            "ultima": "Hoy, 13:45"
-        },
-        {
-            "id": 3, "patente": "IJKL-56", "modelo": "Citroën Berlingo",
-            "conductor": "Pedro Soto", "estado": "En mantenimiento",
-            "km": 60000, "mantencion": "10/10/2026",
-            "consumo": "9 km/l", "combustible": "30%",
-            "ultima": "Ayer, 17:20"
-        },
-    ]
+    # Datos desde MySQL (ver db.py)
+    datos_vehiculos = db.listar_vehiculos()
 
     # Encabezado
     with ui.header().classes("items-center gap-6 px-6"):
@@ -50,7 +30,7 @@ def pagina_vehiculos():
                 ui.label("Gestión de vehículos").classes("text-3xl font-bold")
                 ui.label("Administra la flota, los conductores y el mantenimiento.").classes("text-gray-500")
 
-            ui.button("Actualizar panel",icon="refresh",on_click=lambda: ui.notify("Panel actualizado ")).props("outline")
+            ui.button("Actualizar panel",icon="refresh",on_click=ui.navigate.reload).props("outline")
 
 
         # Tarjetas de resumen
@@ -69,8 +49,8 @@ def pagina_vehiculos():
                 with ui.row().classes("items-center gap-3"):
                     ui.icon("local_shipping", size="2xl").classes("text-green-600")
                     with ui.column().classes("gap-0"):
-                        ui.label("vehiculos activos").classes("text-gray-500")
-                        ui.label(str(sum(v["estado"] == "Activo" for v in datos_vehiculos))).classes("text-3xl font-bold")
+                        ui.label("vehiculos en ruta").classes("text-gray-500")
+                        ui.label(str(sum(v["estado"] == "En ruta" for v in datos_vehiculos))).classes("text-3xl font-bold")
 
             #       vehiculos En mantenimiento
             with ui.card().classes("w-full"):
@@ -78,7 +58,7 @@ def pagina_vehiculos():
                     ui.icon("build", size="2xl").classes("text-orange-500")
                     with ui.column().classes("gap-0"):
                         ui.label("vehiculos en mantenimiento").classes("text-gray-500")
-                        ui.label(str(sum(v["estado"] == "En mantenimiento" 
+                        ui.label(str(sum(v["estado"] == "En mantención"
                                         for v in datos_vehiculos))).classes("text-3xl font-bold")
 
             #       vehiculos Disponibles
@@ -96,7 +76,7 @@ def pagina_vehiculos():
 
                 buscador = ui.input(placeholder="Buscar por patente o modelo...").props("outlined clearable").classes("flex-1")
                 filtro = ui.select(
-                    ["Todos", "Activo", "Disponible", "En mantenimiento"],
+                    ["Todos", "En ruta", "Disponible", "En mantención"],
                     value="Todos",
                     label="Estado del vehículo").props("outlined").classes("w-64")
 
@@ -118,9 +98,9 @@ def pagina_vehiculos():
                         with ui.row().classes("w-full items-center gap-3 p-3 rounded ""cursor-pointer hover:bg-gray-100") as fila:
 
                             color_estado = {
-                                "Activo": "text-green-600",
+                                "En ruta": "text-green-600",
                                 "Disponible": "text-blue-600",
-                                "En mantenimiento": "text-orange-500",}.get(vehiculo["estado"], "text-gray-500")
+                                "En mantención": "text-orange-500",}.get(vehiculo["estado"], "text-gray-500")
 
                             with ui.column().classes("gap-1 flex-1"):
                                 ui.label(vehiculo["patente"]).classes("font-bold")
@@ -176,7 +156,7 @@ def pagina_vehiculos():
 
                     with ui.card().classes("bg-gray-50"):
                         ui.icon("local_gas_station").classes("text-green-600 text-xl")
-                        ui.label("Combustible disponible").classes("text-gray-500")
+                        ui.label("Última carga de combustible").classes("text-gray-500")
                         combustible_detalle = ui.label("65%").classes("text-lg font-bold")
 
                 # Actividad y acciones
@@ -214,9 +194,9 @@ def pagina_vehiculos():
             ultima_detalle.set_text(vehiculo["ultima"])
 
             colores = {
-                "Activo": "text-green-700",
+                "En ruta": "text-green-700",
                 "Disponible": "text-blue-700",
-                "En mantenimiento": "text-orange-600",}
+                "En mantención": "text-orange-600",}
             estado_detalle.classes(remove="text-green-700 text-blue-700 text-orange-600")
             estado_detalle.classes(colores.get(vehiculo["estado"], "text-gray-600"))
 
@@ -231,6 +211,9 @@ def pagina_vehiculos():
 
         buscador.on_value_change(lambda _: aplicar_filtros())
         filtro.on_value_change(lambda _: aplicar_filtros())
+
+        if datos_vehiculos:
+            seleccionar_vehiculo(datos_vehiculos[0])
 
 
 
